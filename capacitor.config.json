@@ -1,0 +1,6 @@
+{
+  "appId": "com.ksenterprises.invoice",
+  "appName": "KS Invoice",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

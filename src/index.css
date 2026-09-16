@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #f2f3f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.mic-pulse {
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(232, 114, 44, 0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(232, 114, 44, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(232, 114, 44, 0); }
+}
