@@ -6,9 +6,11 @@ import watermark from "../assets/watermark.png";
 // ---- EDIT THESE ONCE: your company name / address shown at the top ----
 const COMPANY = {
   name: "K S ENTERPRISES",
-  address: "Your Company Address Line, City, State - PIN Code",
-  mobile: "+91 90000 00000",
-  gstin: "29XXXXX0000X1Z5",
+  address:
+    "Basavanapura Village, Chikkaiahana\nChatra Hobli, Nanjangud, Mysuru-571 302",
+  mobile: "8660712660",
+  gstin: "29EQSPR9307H1ZX",
+  email: "ksenterprises1102@gmail.com",
 };
 
 // One "label : value" row, numbered like the printed form.
@@ -47,24 +49,29 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
       className="bg-white text-black font-sans relative"
     >
       <img
-  src={watermark}
-  alt=""
-  className="absolute inset-0 m-auto opacity-10 pointer-events-none select-none"
-  style={{ width: 420, height: 420, objectFit: "contain", zIndex: 0 }}
-/>
+        src={watermark}
+        alt=""
+        className="absolute inset-0 m-auto opacity-10 pointer-events-none select-none"
+        style={{ width: 420, height: 420, objectFit: "contain", zIndex: 0 }}
+      />
 
       {/* Header: logo + company address, auto-filled every time */}
+      {/* Header: logo + company address */}
       <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b-2 border-black">
-        <img src={logo} alt="logo" className="h-12 object-contain" />
-        <div className="text-right">
+        <img src={logo} alt="logo" className="w-64 h-32 object-contain" />
+
+        <div className="text-right leading-relaxed">
           <div className="text-sm font-bold">{COMPANY.name}</div>
-          <div className="text-[10px] text-gray-600 max-w-[380px]">
+
+          <div className="text-[10px] font-bold">GSTIN : {COMPANY.gstin}</div>
+
+          <div className="text-[10px] whitespace-pre-line">
             {COMPANY.address}
           </div>
-          <div className="text-[10px] text-gray-600">Mob: {COMPANY.mobile}</div>
-          <div className="text-[10px] text-gray-600">
-            GSTIN: {COMPANY.gstin}
-          </div>
+
+          <div className="text-[10px] font-bold">Mob: {COMPANY.mobile}</div>
+
+          <div className="text-[10px]">Email: {COMPANY.email}</div>
         </div>
       </div>
 
@@ -151,7 +158,7 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
           >
             <div className="w-6 border-r border-black" />
             <div className="w-[160px] border-r border-black flex items-center px-4">
-              {idx + 1}. Child
+              d) Children
             </div>
             <div className="flex-1 flex">
               <div className="flex-1 border-r border-black flex items-center px-2">
@@ -170,15 +177,18 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
       </div>
 
       {/* Signature of employee */}
-      <div className="mx-6 border border-t-0 border-black flex justify-end items-center gap-3 px-3 py-2 text-[11px] font-bold text-red-600">
-        {e.signature && (
-          <img
-            src={e.signature}
-            alt="Employee Sign"
-            className="h-10 object-contain"
-          />
-        )}
-        <span>Signature of the Employee</span>
+      {/* Signature of employee */}
+      <div className="mx-6 border border-t-0 border-black flex justify-end items-center px-4 py-2 text-[11px] font-bold text-red-600">
+        <div className="flex flex-col items-center w-40">
+          {e.signature && (
+            <img
+              src={e.signature}
+              alt="Employee Sign"
+              className="h-10 w-32 object-contain mb-1"
+            />
+          )}
+          <span>Signature of the Employee</span>
+        </div>
       </div>
 
       {/* Office use only */}
