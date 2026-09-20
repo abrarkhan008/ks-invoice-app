@@ -20,16 +20,16 @@ function Row({ no, label, value, minH = 28 }) {
       className="flex border-b border-black text-[11px]"
       style={{ minHeight: minH }}
     >
-      <div className="w-6 border-r border-black flex items-center justify-center font-bold text-red-600">
+      <div className="w-6 border-r border-black flex items-center justify-center font-bold text-red-600 py-1">
         {no}
       </div>
-      <div className="w-[160px] border-r border-black flex items-center px-2 font-semibold uppercase">
+      <div className="w-[160px] border-r border-black flex items-center px-2 py-1 font-semibold uppercase leading-tight">
         {label}
       </div>
-      <div className="w-4 border-r border-black flex items-center justify-center">
+      <div className="w-4 border-r border-black flex items-center justify-center py-1">
         :
       </div>
-      <div className="flex-1 flex items-center px-2 whitespace-pre-wrap">
+      <div className="flex-1 flex items-center px-2 py-1 whitespace-pre-wrap">
         {value}
       </div>
     </div>
@@ -101,8 +101,14 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
           no={4}
           label="FATHER'S / HUSBAND'S NAME"
           value={e.fatherHusbandName}
+          minH={38}
         />
-        <Row no={5} label="EDUCATION / QUALIFICATION" value={e.education} />
+        <Row
+          no={5}
+          label="EDUCATION / QUALIFICATION"
+          value={e.education}
+          minH={38}
+        />
         <Row no={6} label="MARITAL STATUS" value={e.maritalStatus} />
 
         {/* Photo box, sits over rows 1-3 on the right like the sample form */}
@@ -118,7 +124,10 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
         </div>
 
         {/* Family details */}
-        <div className="flex border-b border-black text-[11px]">
+        <div
+          className="flex border-b border-black text-[11px]"
+          style={{ minHeight: 26 }}
+        >
           <div className="w-6 border-r border-black flex items-center justify-center font-bold text-red-600">
             7
           </div>
@@ -138,16 +147,39 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
           <div
             key={row.label}
             className="flex border-b border-black text-[11px]"
+            style={{ minHeight: 26 }}
           >
             <div className="w-6 border-r border-black" />
-            <div className="w-[160px] border-r border-black flex items-center px-4">
+            <div className="w-[160px] border-r border-black flex items-center px-4 py-1">
               {row.label}
             </div>
             <div className="flex-1 flex">
-              <div className="flex-1 border-r border-black flex items-center px-2">
+              <div className="flex-1 border-r border-black flex items-center px-2 py-1">
                 {row.name}
               </div>
-              <div className="w-[110px] flex items-center px-2">{row.age}</div>
+              <div className="w-[110px] flex items-center px-2 py-1">
+                {row.age}
+              </div>
+            </div>
+          </div>
+        ))}
+        {e.children.map((child, idx) => (
+          <div
+            key={`child-${idx}`}
+            className="flex border-b border-black text-[11px]"
+            style={{ minHeight: 26 }}
+          >
+            <div className="w-6 border-r border-black" />
+            <div className="w-[160px] border-r border-black flex items-center px-4 py-1">
+              d) Children
+            </div>
+            <div className="flex-1 flex">
+              <div className="flex-1 border-r border-black flex items-center px-2 py-1">
+                {child.name}
+              </div>
+              <div className="w-[110px] flex items-center px-2 py-1">
+                {child.age}
+              </div>
             </div>
           </div>
         ))}
@@ -197,7 +229,12 @@ const EmploymentPreview = forwardRef(function EmploymentPreview(
       </div>
       <div className="mx-6 border-x border-black">
         <Row no={1} label="DATE OF JOINING" value={e.dateOfJoining} />
-        <Row no={2} label="DESIGNATION / DEPARTMENT" value={e.designation} />
+        <Row
+          no={2}
+          label="DESIGNATION / DEPARTMENT"
+          value={e.designation}
+          minH={38}
+        />
         <Row no={3} label="WAGES / SALARY" value={e.wages} />
         <Row no={4} label="ESIC REG. NO." value={e.esicRegNo} />
         <Row no={5} label="EPF A/C NO." value={e.epfAcNo} />
