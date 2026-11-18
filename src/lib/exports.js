@@ -1,6 +1,7 @@
 // All Excel + PDF downloads. Excel files copy the layout of YOUR three sheets
 // (Attendance_MAY_2026, FORM-22_SEP-2026, Ton_List) including the formulas.
 import logo from "../assets/logo.png";
+import sealSign from "../assets/ks-enterprises-seal-signature.png";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -666,87 +667,42 @@ export async function tonXlsx({ y, m, primary }) {
       2,
     )} TO ${last}.${pad(m + 1)}.${y})`;
 
-  ws.mergeCells(1, 1, 1, 6);
+  ws.mergeCells(1, 1, 1, 5);
   ws.getCell(1, 1).value = `KS ENTERPRISES Ton list  month of ${lab}`;
   ws.getCell(1, 1).font = { ...ARIAL, bold: true };
   ws.getCell(1, 1).alignment = { horizontal: "center" };
 
-  [
-    "sl number",
-    "Billing date",
-    "Vehicle no",
-    "Sum of Invoiced Quantity",
-    "Tonnage as per SECOND WEIGH SLIP",
-    "Names",
-  ].forEach((h, i) => {
-    const c = ws.getCell(2, 1 + i);
-    c.value = h;
-    style(c, { bold: true, fill: true });
-  });
+  ["Sl number", "Billing date", "Name 1", "Name 2", "Vehicle no"].forEach(
+    (h, i) => {
+      const c = ws.getCell(2, 1 + i);
+      c.value = h;
+      style(c, { bold: true, fill: true });
+    },
+  );
 
   primary.forEach((e, i) => {
     const r = 3 + i;
     [
       i + 1,
       fmtDMY(e.entry_date),
+      e.name1 || "",
+      e.name2 || "",
       e.vehicle_no,
-      Number(e.invoiced_qty) || 0,
-      Number(e.tonnage) || 0,
-      e.worker_names || "",
     ].forEach((v, k) => {
       ws.getCell(r, 1 + k).value = v;
-      style(ws.getCell(r, 1 + k), { h: k === 5 ? "left" : "center" });
+      style(ws.getCell(r, 1 + k), {
+        h: k === 2 || k === 3 ? "left" : "center",
+      });
     });
   });
 
-  const pEnd = 2 + primary.length,
-    pt = 3 + primary.length;
-  ws.getCell(pt, 4).value = {
-    formula: `SUM(D3:D${pEnd})`,
-    result: primary.reduce((s, e) => s + (+e.invoiced_qty || 0), 0),
-  };
-  ws.getCell(pt, 5).value = {
-    formula: `SUM(E3:E${pEnd})`,
-    result: primary.reduce((s, e) => s + (+e.tonnage || 0), 0),
-  };
-  [
-    [pt, 4],
-    [pt, 5],
-  ].forEach(([r, c]) => style(ws.getCell(r, c), { bold: true }));
-
-  const cat = (k) =>
-    primary.filter((e) => (e.category || "").toUpperCase() === k);
-  let r = pt + 3;
-  ["DAIRY", "PET"].forEach((k) => {
-    ws.getCell(r, 3).value = k;
-    ws.getCell(r, 4).value = cat(k).reduce(
-      (s, e) => s + (+e.invoiced_qty || 0),
-      0,
-    );
-    ws.getCell(r, 5).value = cat(k).reduce((s, e) => s + (+e.tonnage || 0), 0);
-    for (let c = 3; c <= 5; c++) style(ws.getCell(r, c), { bold: true });
-    r += 2;
-  });
-  ws.getCell(r, 4).value = {
-    formula: `SUM(D${pt + 3}:D${r - 1})`,
-    result: primary.reduce((s, e) => s + (+e.invoiced_qty || 0), 0),
-  };
-  ws.getCell(r, 5).value = {
-    formula: `SUM(E${pt + 3}:E${r - 1})`,
-    result: primary.reduce((s, e) => s + (+e.tonnage || 0), 0),
-  };
-  style(ws.getCell(r, 4), { bold: true });
-  style(ws.getCell(r, 5), { bold: true });
-
-  [8, 13, 24, 16, 28, 30].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-  ws.getRow(2).height = 42;
+  [8, 13, 24, 24, 20].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  ws.getRow(2).height = 30;
   await saveBook(wb, `Ton_List_${MONTHS[m]}_${y}.xlsx`);
 }
-
 export async function tonPdf({ y, m, primary }) {
   const { doc, autoTable } = await newPdf("portrait", "a4");
   const W = doc.internal.pageSize.getWidth();
-  const tt = (k) => primary.reduce((s, e) => s + (+e[k] || 0), 0);
   doc.setFillColor(11, 18, 32).rect(0, 0, W, 56, "F");
   doc.setFillColor(184, 146, 63).rect(0, 56, W, 2.5, "F");
   doc
@@ -761,43 +717,22 @@ export async function tonPdf({ y, m, primary }) {
     .text(`Ton List · ${monthLabel(y, m)}`, 30, 45);
   autoTable(doc, {
     startY: 74,
-    head: [
-      [
-        "Sl",
-        "Billing date",
-        "Vehicle no",
-        "Invoiced Qty",
-        "Tonnage (2nd weigh slip)",
-        "Type",
-        "Names",
-      ],
-    ],
-    body: [
-      ...primary.map((e, i) => [
-        i + 1,
-        fmtDMY(e.entry_date),
-        e.vehicle_no,
-        e.invoiced_qty,
-        e.tonnage,
-        e.category || "",
-        e.worker_names || "",
-      ]),
-      ["", "", "TOTAL", tt("invoiced_qty"), tt("tonnage").toFixed(2), "", ""],
-    ],
+    head: [["Sl", "Billing date", "Name 1", "Name 2", "Vehicle no"]],
+    body: primary.map((e, i) => [
+      i + 1,
+      fmtDMY(e.entry_date),
+      e.name1 || "",
+      e.name2 || "",
+      e.vehicle_no,
+    ]),
     styles: {
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 9,
+      cellPadding: 4,
       lineColor: [221, 214, 200],
       lineWidth: 0.4,
     },
     headStyles: { fillColor: [11, 18, 32], textColor: [212, 178, 106] },
     theme: "grid",
-    didParseCell: (d) => {
-      if (d.section === "body" && d.row.index === primary.length) {
-        d.cell.styles.fontStyle = "bold";
-        d.cell.styles.fillColor = [241, 234, 219];
-      }
-    },
   });
   await savePdf(doc, `Ton_List_${MONTHS[m]}_${y}.pdf`);
 }
@@ -936,11 +871,17 @@ export async function payslipPdf({ y, m, emp, calc }) {
   doc.text(`In words: ${numberToWords(calc.net)}`, 30, y2 + 66);
   doc.text("Mode of payment: BANK PAYMENT", 30, y2 + 82);
 
+  doc.setTextColor(70).setFont(undefined, "bold").setFontSize(8.5);
+  doc.text("For K S ENTERPRISES", W - 110, y2 + 92, { align: "center" });
+  try {
+    doc.addImage(await toDataUrl(sealSign), "PNG", W - 190, y2 + 96, 160, 44);
+  } catch {}
   doc
     .setDrawColor(...GOLD)
     .setLineWidth(0.8)
-    .line(W - 190, y2 + 130, W - 30, y2 + 130);
-  doc.setFontSize(8.5).text("Authorised Signatory", W - 190, y2 + 143);
+    .line(W - 190, y2 + 144, W - 30, y2 + 144);
+  doc.setFont(undefined, "normal").setFontSize(8.5);
+  doc.text("Authorised Signatory", W - 110, y2 + 157, { align: "center" });
   doc
     .setFontSize(7.5)
     .setTextColor(130)

@@ -88,20 +88,9 @@ export default function TonList() {
 
   const list = useMemo(() => rows || [], [rows]);
   const shown = list.filter((r) =>
-    ((r.vehicle_no || "") + (r.worker_names || ""))
+    ((r.vehicle_no || "") + (r.name1 || "") + (r.name2 || ""))
       .toLowerCase()
       .includes(q.toLowerCase()),
-  );
-  const sumBy = (arr, k) => arr.reduce((s, r) => s + (+r[k] || 0), 0);
-  const totQty = sumBy(list, "invoiced_qty");
-  const totTon = sumBy(list, "tonnage");
-  const dairy = sumBy(
-    list.filter((r) => r.category === "DAIRY"),
-    "tonnage",
-  );
-  const pet = sumBy(
-    list.filter((r) => r.category === "PET"),
-    "tonnage",
   );
 
   return (
@@ -141,23 +130,12 @@ export default function TonList() {
 
       {/* summary cards */}
       {rows && (
-        <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mb-5 grid grid-cols-2 gap-3">
           <Stat
             label="Total entries"
             value={list.length}
             sub="vehicles this month"
-          />
-          <Stat label="Invoiced qty" value={totQty.toLocaleString("en-IN")} />
-          <Stat
-            label="Total tonnage"
-            value={totTon.toFixed(2)}
-            sub="2nd weigh slip"
             gold
-          />
-          <Stat
-            label="Dairy / PET"
-            value={`${dairy.toFixed(1)} / ${pet.toFixed(1)}`}
-            sub="tonnage split"
           />
         </div>
       )}
@@ -185,16 +163,14 @@ export default function TonList() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-xs">
+            <table className="w-full min-w-[620px] text-xs">
               <thead>
                 <tr className="bg-ksdark text-left text-[10px] uppercase tracking-[0.14em] text-ksgold">
                   <th className="px-4 py-3.5">Sl</th>
                   <th className="px-2">Billing date</th>
+                  <th className="px-2">Name 1</th>
+                  <th className="px-2">Name 2</th>
                   <th className="px-2">Vehicle no</th>
-                  <th className="px-2 text-right">Invoiced qty</th>
-                  <th className="px-2 text-right">Tonnage</th>
-                  <th className="px-3">Type</th>
-                  <th className="px-2">Loaded by</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -209,23 +185,6 @@ export default function TonList() {
                   />
                 ))}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-ksgold/60 bg-ksmist text-sm font-bold text-ksdark">
-                  <td
-                    colSpan={3}
-                    className="px-4 py-3.5 text-right uppercase tracking-wider"
-                  >
-                    Total
-                  </td>
-                  <td className="px-2 text-right">
-                    {totQty.toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-2 text-right text-ksorange">
-                    {totTon.toFixed(2)}
-                  </td>
-                  <td colSpan={3} />
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}
@@ -237,11 +196,9 @@ export default function TonList() {
 function AddRow({ me, onAdded }) {
   const [f, setF] = useState({
     entry_date: todayStr(),
+    name1: "",
+    name2: "",
     vehicle_no: "",
-    invoiced_qty: "",
-    tonnage: "",
-    category: "DAIRY",
-    worker_names: "",
   });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const add = async () => {
@@ -249,16 +206,13 @@ function AddRow({ me, onAdded }) {
     const { error } = await supabase.from("ton_entries").insert({
       list_type: "primary",
       entry_date: f.entry_date,
+      name1: f.name1.trim(),
+      name2: f.name2.trim(),
       vehicle_no: f.vehicle_no.trim().toUpperCase(),
-      invoiced_qty: Number(f.invoiced_qty) || 0,
-      tonnage: Number(f.tonnage) || 0,
-      category: f.category,
-      party_name: null,
-      worker_names: f.worker_names,
       created_by: me.id,
     });
     if (error) return alert(error.message);
-    setF({ ...f, vehicle_no: "", invoiced_qty: "", tonnage: "" });
+    setF({ ...f, name1: "", name2: "", vehicle_no: "" });
     onAdded();
   };
   return (
@@ -266,34 +220,14 @@ function AddRow({ me, onAdded }) {
       <div className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-ksorange">
         New entry
       </div>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <Input type="date" value={f.entry_date} onChange={set("entry_date")} />
+        <Input placeholder="Name 1" value={f.name1} onChange={set("name1")} />
+        <Input placeholder="Name 2" value={f.name2} onChange={set("name2")} />
         <Input
           placeholder="Vehicle no"
           value={f.vehicle_no}
           onChange={set("vehicle_no")}
-        />
-        <Input
-          type="number"
-          placeholder="Invoiced qty"
-          value={f.invoiced_qty}
-          onChange={set("invoiced_qty")}
-        />
-        <Input
-          type="number"
-          step="0.01"
-          placeholder="Tonnage"
-          value={f.tonnage}
-          onChange={set("tonnage")}
-        />
-        <Select value={f.category} onChange={set("category")}>
-          <option>DAIRY</option>
-          <option>PET</option>
-        </Select>
-        <Input
-          placeholder="Names (who loaded)"
-          value={f.worker_names}
-          onChange={set("worker_names")}
         />
         <Btn onClick={add}>+ Add entry</Btn>
       </div>
@@ -311,15 +245,11 @@ function Row({ r, i, canEdit, onChanged }) {
       <tr className={"border-t border-slate-100 " + stripe}>
         <td className="px-4 py-3 text-slate-400">{i + 1}</td>
         <td className="px-2">{fmtDMY(r.entry_date)}</td>
+        <td className="px-2">{r.name1}</td>
+        <td className="px-2">{r.name2}</td>
         <td className="px-2 font-bold tracking-wide text-ksdark">
           {r.vehicle_no}
         </td>
-        <td className="px-2 text-right">{r.invoiced_qty}</td>
-        <td className="px-2 text-right font-semibold">{r.tonnage}</td>
-        <td className="px-3">
-          <CatBadge c={r.category} />
-        </td>
-        <td className="px-2 text-slate-600">{r.worker_names}</td>
         <td />
       </tr>
     );
@@ -327,12 +257,9 @@ function Row({ r, i, canEdit, onChanged }) {
 
   const save = async (k) => {
     if (String(v[k] ?? "") === String(r[k] ?? "")) return;
-    const val = ["invoiced_qty", "tonnage"].includes(k)
-      ? Number(v[k]) || 0
-      : v[k];
     const { error } = await supabase
       .from("ton_entries")
-      .update({ [k]: val })
+      .update({ [k]: v[k] })
       .eq("id", r.id);
     if (error) alert(error.message);
     else onChanged();
@@ -353,29 +280,9 @@ function Row({ r, i, canEdit, onChanged }) {
     <tr className={"border-t border-slate-100 " + stripe}>
       <td className="px-4 text-slate-400">{i + 1}</td>
       <td className="px-1">{cell("entry_date", "", "date")}</td>
+      <td className="px-1">{cell("name1")}</td>
+      <td className="px-1">{cell("name2")}</td>
       <td className="px-1">{cell("vehicle_no", "font-bold")}</td>
-      <td className="px-1">{cell("invoiced_qty", "text-right", "number")}</td>
-      <td className="px-1">
-        {cell("tonnage", "text-right font-semibold", "number")}
-      </td>
-      <td className="px-2">
-        <select
-          value={v.category || ""}
-          className="rounded-md bg-transparent px-1 py-1 text-xs font-bold"
-          onChange={(e) => {
-            setV({ ...v, category: e.target.value });
-            supabase
-              .from("ton_entries")
-              .update({ category: e.target.value })
-              .eq("id", r.id)
-              .then(onChanged);
-          }}
-        >
-          <option>DAIRY</option>
-          <option>PET</option>
-        </select>
-      </td>
-      <td className="px-1">{cell("worker_names")}</td>
       <td className="px-2">
         <button
           title="Delete"
