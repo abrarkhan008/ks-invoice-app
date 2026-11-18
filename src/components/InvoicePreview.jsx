@@ -479,17 +479,12 @@ const InvoicePreview = forwardRef(({ invoice }, ref) => {
           {/* TITLE LINE (SL NO 1 + description title, blank number columns) */}
           <tr>
             <td
-              rowSpan={rows.length + 1}
               style={{
                 border: "1px solid #000",
-                borderBottom: "1px solid #000",
-                textAlign: "center",
-                verticalAlign: "top",
+                borderBottom: "none",
                 padding: "5px",
               }}
-            >
-              1
-            </td>
+            ></td>
             <td
               style={{
                 border: "1px solid #000",
@@ -551,6 +546,18 @@ const InvoicePreview = forwardRef(({ invoice }, ref) => {
             const isLast = idx === rows.length - 1;
             return (
               <tr key={r.id || idx}>
+                <td
+                  style={{
+                    border: "1px solid #000",
+                    borderTop: "none",
+                    borderBottom: isLast ? "1px solid #000" : "none",
+                    textAlign: "center",
+                    verticalAlign: "top",
+                    padding: "5px",
+                  }}
+                >
+                  {idx + 1}
+                </td>
                 <td
                   style={{
                     border: "1px solid #000",

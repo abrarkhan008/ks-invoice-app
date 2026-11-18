@@ -23,13 +23,14 @@ const QuotationPreview = forwardRef(({ quotation }, ref) => {
       ref={ref}
       style={{
         width: 794,
-        height: 1123,
+        minHeight: 1123,
         padding: 40,
         background: "#fff",
         fontFamily: "Arial, sans-serif",
         color: "#222",
-        position: "relative",
         boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* Header */}
@@ -174,22 +175,24 @@ const QuotationPreview = forwardRef(({ quotation }, ref) => {
 
       {/* Terms */}
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontWeight: "bold", marginBottom: 6 }}>
+        <div data-keep style={{ fontWeight: "bold", marginBottom: 6 }}>
           Terms & Conditions:
         </div>
         {quotation.terms.map((t, i) => (
-          <div key={i} style={{ fontSize: 12, marginBottom: 4 }}>
+          <div data-keep key={i} style={{ fontSize: 12, marginBottom: 4 }}>
             {i + 1}) {t}
           </div>
         ))}
       </div>
 
-      {/* Signature */}
+      {/* Signature: stays at page bottom when content is short,
+    moves down automatically when content is long */}
       <div
+        data-keep
         style={{
-          position: "absolute",
-          bottom: 60,
-          right: 40,
+          marginTop: "auto",
+          paddingTop: 40,
+          alignSelf: "flex-end",
           textAlign: "center",
         }}
       >

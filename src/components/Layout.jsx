@@ -5,10 +5,12 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useRealtime } from "../lib/useRealtime.js";
 import { Avatar } from "./ui.jsx";
 import logo from "../assets/logo.png";
+import AccountSecurity from "./AccountSecurity.jsx";
 
 export default function Layout() {
   const { profile, isAdmin, signOut } = useAuth();
   const [pending, setPending] = useState(0);
+  const [secOpen, setSecOpen] = useState(false);
   // proper logout: asks first, then goes to the correct login page
   const doLogout = async () => {
     if (!confirm("Logout from K S Enterprises?")) return;
@@ -145,6 +147,14 @@ export default function Layout() {
             ⏻
           </button>
         </div>
+        {isAdmin && (
+          <button
+            onClick={() => setSecOpen(true)}
+            className="mt-3 w-full rounded-xl bg-white/10 py-2.5 text-sm font-bold text-white hover:bg-white/20"
+          >
+            🔐 Account security
+          </button>
+        )}
         <button
           onClick={doLogout}
           className="mt-3 w-full rounded-xl bg-rose-500/10 py-2.5 text-sm font-bold text-rose-300 ring-1 ring-rose-400/20 transition hover:bg-rose-500 hover:text-white"
@@ -167,6 +177,14 @@ export default function Layout() {
             <span className="max-w-[32vw] truncate text-xs font-semibold">
               {profile?.name}
             </span>
+            {isAdmin && (
+              <button
+                onClick={() => setSecOpen(true)}
+                className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold"
+              >
+                🔐
+              </button>
+            )}
             <button
               onClick={doLogout}
               className="rounded-full bg-rose-500 px-3 py-1.5 text-xs font-bold text-white"
@@ -202,6 +220,7 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        {secOpen && <AccountSecurity onClose={() => setSecOpen(false)} />}
       </div>
     </div>
   );

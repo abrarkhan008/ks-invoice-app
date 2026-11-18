@@ -1,36 +1,17 @@
-// Simple local storage helper to save/load invoices on the device
-const KEY = "ks_invoices_v1";
+import { getAllDocs, saveDoc, deleteDoc } from "./cloudStore.js";
 
-export function getAllInvoices() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+export const getAllInvoices = () => getAllDocs("invoice");
+export const saveInvoice = (inv) => saveDoc("invoice", inv);
+export const deleteInvoice = (id) => deleteDoc("invoice", id);
 
-export function saveInvoice(invoice) {
-  const all = getAllInvoices();
-  const idx = all.findIndex((i) => i.id === invoice.id);
-  if (idx >= 0) {
-    all[idx] = invoice;
-  } else {
-    all.unshift(invoice);
-  }
-  localStorage.setItem(KEY, JSON.stringify(all));
-  return all;
-}
-
-export function deleteInvoice(id) {
-  const all = getAllInvoices().filter((i) => i.id !== id);
-  localStorage.setItem(KEY, JSON.stringify(all));
-  return all;
-}
-
-export function nextInvoiceNumber() {
-  const all = getAllInvoices();
-  const year = new Date().getFullYear();
-  const fy = `${year}-${String(year + 1).slice(2)}`;
-  return `${String(all.length + 1).padStart(3, "0")}/${fy}`;
+export async function nextInvoiceNumber() {
+  const list = await getAllDocs("invoice");
+  const now = new Date();
+  const y = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const fy = `${y}-${String(y + 1).slice(2)}`;
+  const max = list.reduce((m, i) => {
+    const n = parseInt(String(i.invoiceNo || "").split("/")[0], 10) || 0;
+    return String(i.invoiceNo || "").endsWith(fy) ? Math.max(m, n) : m;
+  }, 0);
+  return `${String(max + 1).padStart(3, "0")}/${fy}`;
 }

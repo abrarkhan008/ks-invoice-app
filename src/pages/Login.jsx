@@ -2,17 +2,34 @@ import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import logo from "../assets/logo.png";
+import { supabase } from "../lib/supabase.js";
 
 export default function Login({ mode = "employee" }) {
   const isAdmin = mode === "admin";
   const { session, profile, signIn } = useAuth();
   const [code, setCode] = useState("");
+  const [info, setInfo] = useState("");
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   if (session && profile) return <Navigate to="/" replace />;
-
+  const forgot = async () => {
+    setErr("");
+    setInfo("");
+    if (!code.includes("@"))
+      return setErr(
+        "Type your admin email above first, then tap Forgot password.",
+      );
+    const { error } = await supabase.auth.resetPasswordForEmail(code.trim(), {
+      redirectTo: window.location.origin,
+    });
+    if (error) setErr(error.message);
+    else
+      setInfo(
+        "If this email is registered, a reset link was sent. Check inbox and spam.",
+      );
+  };
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -72,18 +89,20 @@ export default function Login({ mode = "employee" }) {
           </span>
           <h1 className="text-3xl font-extrabold text-ksdark">Welcome back</h1>
           <p className="mb-8 mt-1 text-sm text-slate-500">
-            Sign in with your Employee ID and password.
+            Sign in with your {isAdmin ? "Admin ID" : "Employee ID"} and
+            password.
           </p>
 
           <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Employee ID
+            {isAdmin ? "Admin Email" : "Employee ID"}
           </label>
           <input
             className={input + " mb-5"}
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="KS01/2025-26"
-            autoCapitalize="characters"
+            placeholder={isAdmin ? "you@gmail.com" : "KS01/2025-26"}
+            autoCapitalize={isAdmin ? "none" : "characters"}
+            type={isAdmin ? "email" : "text"}
             required
           />
 
@@ -120,9 +139,24 @@ export default function Login({ mode = "employee" }) {
             {busy ? "Signing in…" : "Sign in"}
           </button>
 
-          <p className="mt-6 text-center text-xs text-slate-400">
-            Forgot password? Ask the admin to reset it.
-          </p>
+          {info && (
+            <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {info}
+            </div>
+          )}
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={forgot}
+              className="mt-6 block w-full text-center text-xs font-semibold text-ksorange"
+            >
+              Forgot password? Send reset link to my email
+            </button>
+          ) : (
+            <p className="mt-6 text-center text-xs text-slate-400">
+              Forgot password? Ask the admin to reset it.
+            </p>
+          )}
           <div className="mt-6 border-t border-slate-100 pt-4 text-center text-sm">
             {isAdmin ? (
               <Link to="/login" className="font-semibold text-ksorange">

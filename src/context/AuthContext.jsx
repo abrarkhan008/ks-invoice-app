@@ -6,6 +6,7 @@ import {
   useCallback,
 } from "react";
 import { supabase, emailFor } from "../lib/supabase.js";
+import ResetPassword from "../components/ResetPassword.jsx";
 
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
@@ -14,6 +15,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(() =>
+    window.location.hash.includes("type=recovery"),
+  );
 
   const loadProfile = useCallback(async (uid) => {
     const { data } = await supabase
@@ -32,37 +36,50 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      if (error) {
+        await supabase.auth.signOut({ scope: "local" });
+        setSession(null);
+        setLoading(false);
+        return;
+      }
       setSession(data.session);
       if (data.session) await loadProfile(data.session.user.id);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
       setSession(s);
       if (!s) setProfile(null);
     });
     return () => sub.subscription.unsubscribe();
   }, [loadProfile]);
 
-const signIn = async (code, password, expectedRole) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: emailFor(code),
-    password,
-  });
-  if (error) throw new Error("Wrong ID or password");
-  const { data: prof } = await supabase
-    .from("profiles").select("role").eq("id", data.user.id).single();
-  if (expectedRole && prof?.role !== expectedRole) {
-    await supabase.auth.signOut();
-    throw new Error(
-      expectedRole === "admin"
-        ? "This is not an admin account. Please use Employee login."
-        : "Admins must sign in from the Admin login page."
-    );
-  }
-  const p = await loadProfile(data.user.id);
-  if (!p) throw new Error("Your access has been removed. Please contact the admin.");
-};
+  const signIn = async (code, password, expectedRole) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailFor(code),
+      password,
+    });
+    if (error) throw new Error("Wrong ID or password");
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+    if (expectedRole && prof?.role !== expectedRole) {
+      await supabase.auth.signOut();
+      throw new Error(
+        expectedRole === "admin"
+          ? "This is not an admin account. Please use Employee login."
+          : "Admins must sign in from the Admin login page.",
+      );
+    }
+    const p = await loadProfile(data.user.id);
+    if (!p)
+      throw new Error(
+        "Your access has been removed. Please contact the admin.",
+      );
+  };
   const signOut = () => supabase.auth.signOut();
 
   return (
@@ -77,7 +94,11 @@ const signIn = async (code, password, expectedRole) => {
         reloadProfile: () => loadProfile(session.user.id),
       }}
     >
-      {children}
+      {recovering ? (
+        <ResetPassword onDone={() => setRecovering(false)} />
+      ) : (
+        children
+      )}
     </Ctx.Provider>
   );
 }

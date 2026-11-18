@@ -6,7 +6,7 @@ export const supabase = createClient(
   {
     auth: {
       // session is forgotten when the browser tab/app is closed
-      storage: window.sessionStorage,
+      storage: window.localStorage,
       persistSession: true,
       autoRefreshToken: true,
     },
@@ -14,13 +14,11 @@ export const supabase = createClient(
 );
 
 // Employee ID  ->  hidden login e-mail.  MUST be identical to the function in the Edge Function.
-export const emailFor = (code) =>
-  code
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") + "@ks-hrms.app";
-
+export const emailFor = (code) => {
+  const c = code.trim().toLowerCase();
+  if (c.includes("@")) return c; // real email (admin)
+  return c.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "@ks-hrms.app"; // employees keep the hidden email
+};
 // Calls the secure server function (create employee, reset password, remove access ...)
 export async function adminApi(action, payload = {}) {
   const { data, error } = await supabase.functions.invoke("admin-users", {

@@ -31,8 +31,13 @@ import {
   deleteEmployee,
   nextCardNumber,
 } from "./utils/employmentStorage.js";
-import { buildPdfFromNode, sharePdf } from "./utils/pdfGenerator.js";
-
+import {
+  buildPdfFromNode,
+  sharePdf,
+  downloadPdf,
+} from "./utils/pdfGenerator.js";
+import { syncPending } from "./utils/cloudStore.js";
+import { migrateOldLocalData } from "./utils/migrateLocal.js";
 export default function App() {
   const [screen, setScreen] = useState("list");
   const [docType, setDocType] = useState("invoice"); // "invoice" | "quotation" | "employment"
@@ -48,15 +53,46 @@ export default function App() {
   const [employee, setEmployee] = useState(null);
 
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const previewRef = useRef(null);
   const previewWrapRef = useRef(null);
+  const innerRef = useRef(null);
+  const [innerH, setInnerH] = useState(1123);
   const [scale, setScale] = useState(0.42);
 
+  const loadAll = async () => {
+    setInvoices(await getAllInvoices());
+    setQuotations(await getAllQuotations());
+    setEmployees(await getAllEmployees());
+  };
+
   useEffect(() => {
-    setInvoices(getAllInvoices());
-    setQuotations(getAllQuotations());
-    setEmployees(getAllEmployees());
+    (async () => {
+      const r = await migrateOldLocalData();
+      if (r.moved > 0)
+        alert(`${r.moved} old document(s) moved to online storage ✔`);
+      await loadAll();
+    })();
+
+    // upload anything unsent when internet returns
+    const run = () =>
+      ["invoice", "quotation", "employee"].forEach((t) => syncPending(t));
+    run();
+    window.addEventListener("online", run);
+    return () => window.removeEventListener("online", run);
   }, []);
+
+  const notifySave = (res) => {
+    if (res.cloud) return;
+    if (res.loginExpired)
+      alert(
+        "Saved on this phone only. Please login again, then Save once more.",
+      );
+    else
+      alert(
+        "Saved on this phone. No internet now. It will upload automatically later.",
+      );
+  };
 
   // Recompute the preview scale so it exactly fills the card width
   // instead of using a hardcoded 0.42 / 340% hack.
@@ -69,10 +105,15 @@ export default function App() {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, [screen]);
+  useLayoutEffect(() => {
+    if (screen === "preview" && innerRef.current) {
+      setInnerH(Math.max(1123, innerRef.current.offsetHeight));
+    }
+  }, [screen, invoice, quotation, employee, docType]);
 
   // ---------- Invoice handlers ----------
-  const startNew = () => {
-    setInvoice(emptyInvoice(nextInvoiceNumber()));
+  const startNew = async () => {
+    setInvoice(emptyInvoice(await nextInvoiceNumber()));
     setDocType("invoice");
     setScreen("edit");
   };
@@ -83,20 +124,29 @@ export default function App() {
     setScreen("edit");
   };
 
-  const handleSave = () => {
-    const updated = saveInvoice(invoice);
-    setInvoices(updated);
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    const res = await saveInvoice(invoice);
+    setInvoices(await getAllInvoices());
+    setSaving(false);
+    notifySave(res);
     setScreen("preview");
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm("Delete this invoice?")) return;
-    setInvoices(deleteInvoice(id));
+    try {
+      await deleteInvoice(id);
+      setInvoices(await getAllInvoices());
+    } catch {
+      alert("Could not delete. Check internet and try again.");
+    }
   };
 
   // ---------- Quotation handlers ----------
-  const startNewQuotation = () => {
-    setQuotation(emptyQuotation(nextQuotationNumber()));
+  const startNewQuotation = async () => {
+    setQuotation(emptyQuotation(await nextQuotationNumber()));
     setDocType("quotation");
     setScreen("edit");
   };
@@ -107,20 +157,29 @@ export default function App() {
     setScreen("edit");
   };
 
-  const handleSaveQuotation = () => {
-    const updated = saveQuotation(quotation);
-    setQuotations(updated);
+  const handleSaveQuotation = async () => {
+    if (saving) return;
+    setSaving(true);
+    const res = await saveQuotation(quotation);
+    setQuotations(await getAllQuotations());
+    setSaving(false);
+    notifySave(res);
     setScreen("preview");
   };
 
-  const handleDeleteQuotation = (id) => {
+  const handleDeleteQuotation = async (id) => {
     if (!confirm("Delete this quotation?")) return;
-    setQuotations(deleteQuotation(id));
+    try {
+      await deleteQuotation(id);
+      setQuotations(await getAllQuotations());
+    } catch {
+      alert("Could not delete. Check internet and try again.");
+    }
   };
 
   // ---------- Employment handlers ----------
-  const startNewEmployment = () => {
-    setEmployee(emptyEmployment(nextCardNumber()));
+  const startNewEmployment = async () => {
+    setEmployee(emptyEmployment(await nextCardNumber()));
     setDocType("employment");
     setScreen("edit");
   };
@@ -131,41 +190,48 @@ export default function App() {
     setScreen("edit");
   };
 
-  const handleSaveEmployment = () => {
-    const updated = saveEmployee(employee);
-    setEmployees(updated);
+  const handleSaveEmployment = async () => {
+    if (saving) return;
+    setSaving(true);
+    const res = await saveEmployee(employee);
+    setEmployees(await getAllEmployees());
+    setSaving(false);
+    notifySave(res);
     setScreen("preview");
   };
 
-  const handleDeleteEmployment = (id) => {
+  const handleDeleteEmployment = async (id) => {
     if (!confirm("Delete this employment record?")) return;
-    setEmployees(deleteEmployee(id));
+    try {
+      await deleteEmployee(id);
+      setEmployees(await getAllEmployees());
+    } catch {
+      alert("Could not delete. Check internet and try again.");
+    }
   };
 
   // ---------- Shared: share/export current doc as PDF ----------
+  // ---------- Shared: PDF file name ----------
+  const makeFileName = () => {
+    if (docType === "invoice")
+      return `Invoice_${(invoice.invoiceNo || "KS").replace(/\//g, "-")}.pdf`;
+    if (docType === "quotation")
+      return `Quotation_${(quotation.quotationNo || "KS").replace(
+        /\//g,
+        "-",
+      )}.pdf`;
+    return `Employment_${(employee.cardNo || employee.name || "KS").replace(
+      /\//g,
+      "-",
+    )}.pdf`;
+  };
+
+  // ---------- Share PDF ----------
   const handleShare = async () => {
     if (!previewRef.current) return;
     setBusy(true);
     try {
-      let fileName = "Document.pdf";
-      if (docType === "invoice") {
-        fileName = `Invoice_${(invoice.invoiceNo || "KS").replace(
-          /\//g,
-          "-",
-        )}.pdf`;
-      } else if (docType === "quotation") {
-        fileName = `Quotation_${(quotation.quotationNo || "KS").replace(
-          /\//g,
-          "-",
-        )}.pdf`;
-      } else if (docType === "employment") {
-        fileName = `Employment_${(
-          employee.cardNo ||
-          employee.name ||
-          "KS"
-        ).replace(/\//g, "-")}.pdf`;
-      }
-      const pdf = await buildPdfFromNode(previewRef.current, fileName);
+      const pdf = await buildPdfFromNode(previewRef.current, makeFileName());
       await sharePdf(pdf);
     } catch (err) {
       alert("Could not share the PDF: " + err.message);
@@ -174,10 +240,24 @@ export default function App() {
     }
   };
 
+  // ---------- Download PDF ----------
+  const handleDownload = async () => {
+    if (!previewRef.current) return;
+    setBusy(true);
+    try {
+      const pdf = await buildPdfFromNode(previewRef.current, makeFileName());
+      await downloadPdf(pdf);
+    } catch (err) {
+      alert("Could not download the PDF: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen pb-10">
-      <header className="bg-ksdark text-white sticky top-0 z-10 shadow-md">
-        <div className="max-w-md mx-auto flex items-center justify-between px-4 py-3">
+      <header className="bg-ksdark text-white sticky top-14 md:top-0 z-20 shadow-md">
+        <div className="max-w-md md:max-w-2xl mx-auto flex items-center justify-between px-4 py-3">
           {/* LEFT SIDE */}
           <div className="flex items-center gap-2">
             {/* BACK BUTTON */}
@@ -275,7 +355,7 @@ export default function App() {
 
       {/* CARD IMAGE - HOME PAGE ONLY */}
       {screen === "list" && (
-        <div className="max-w-md mx-auto flex justify-center px-4 pt-6 pb-4">
+        <div className="max-w-md md:max-w-2xl mx-auto flex justify-center px-4 pt-6 pb-4">
           <img
             src={cardImage}
             alt="K.S. Enterprises"
@@ -284,7 +364,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="max-w-md mx-auto px-4 pt-4">
+      <main className="max-w-md md:max-w-2xl mx-auto px-4 pt-4">
         {screen === "storage" && (
           <div>
             {invoices.length === 0 &&
@@ -430,9 +510,10 @@ export default function App() {
             <InvoiceForm invoice={invoice} setInvoice={setInvoice} />
             <button
               onClick={handleSave}
-              className="w-full bg-ksorange text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow"
+              disabled={saving}
+              className="w-full bg-ksorange text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow disabled:opacity-60"
             >
-              Save & Preview Invoice
+              {saving ? "Saving..." : "Save & Preview Invoice"}
             </button>
           </div>
         )}
@@ -442,9 +523,10 @@ export default function App() {
             <QuotationForm quotation={quotation} setQuotation={setQuotation} />
             <button
               onClick={handleSaveQuotation}
-              className="w-full bg-ksdark text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow"
+              disabled={saving}
+              className="w-full bg-ksdark text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow disabled:opacity-60"
             >
-              Save & Preview Quotation
+              {saving ? "Saving..." : "Save & Preview Quotation"}
             </button>
           </div>
         )}
@@ -454,9 +536,10 @@ export default function App() {
             <EmploymentForm employee={employee} setEmployee={setEmployee} />
             <button
               onClick={handleSaveEmployment}
-              className="w-full bg-ksdark text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow"
+              disabled={saving}
+              className="w-full bg-ksdark text-white font-bold rounded-xl py-3 mt-4 mb-4 shadow disabled:opacity-60"
             >
-              Save & Preview Employment Details
+              {saving ? "Saving..." : "Save & Preview Employment Details"}
             </button>
           </div>
         )}
@@ -466,14 +549,14 @@ export default function App() {
             <div
               ref={previewWrapRef}
               className="bg-white rounded-xl shadow-sm p-2 mb-4 overflow-hidden"
-              style={{ height: 1123 * scale + 16 }}
+              style={{ height: innerH * scale + 16 }}
             >
               <div
+                ref={innerRef}
                 style={{
                   transform: `scale(${scale})`,
                   transformOrigin: "top left",
                   width: 794,
-                  height: 1123,
                 }}
               >
                 {docType === "invoice" ? (
@@ -488,14 +571,21 @@ export default function App() {
             <div className="flex gap-3">
               <button
                 onClick={() => setScreen("edit")}
-                className="flex-1 bg-gray-200 text-gray-700 font-bold rounded-xl py-3"
+                className="flex-1 bg-gray-200 text-gray-700 font-bold rounded-xl py-3 text-sm"
               >
                 Edit
               </button>
               <button
+                onClick={handleDownload}
+                disabled={busy}
+                className="flex-1 bg-ksorange text-white font-bold rounded-xl py-3 text-sm disabled:opacity-60"
+              >
+                {busy ? "Preparing..." : "⬇ Download"}
+              </button>
+              <button
                 onClick={handleShare}
                 disabled={busy}
-                className="flex-1 bg-green-600 text-white font-bold rounded-xl py-3"
+                className="flex-1 bg-green-600 text-white font-bold rounded-xl py-3 text-sm disabled:opacity-60"
               >
                 {busy ? "Preparing..." : "Share"}
               </button>
