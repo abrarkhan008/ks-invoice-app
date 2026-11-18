@@ -67,7 +67,7 @@ export default function TonList() {
   const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("ton_entries")
       .select("*")
       .eq("list_type", "primary")
@@ -75,8 +75,11 @@ export default function TonList() {
       .lte("entry_date", monthEnd(y, m))
       .order("entry_date")
       .order("id");
+    // employee: only the rows he added. admin: everything.
+    if (!isAdmin) query = query.eq("created_by", profile.id);
+    const { data } = await query;
     setRows(data || []);
-  }, [y, m]);
+  }, [y, m, isAdmin, profile.id]);
   useEffect(() => {
     setRows(null);
     load();
@@ -107,8 +110,8 @@ export default function TonList() {
         title="Ton List"
         sub={
           canEdit
-            ? `${MONTHS[m]} ${y} · Add and edit entries. Changes appear on all phones instantly.`
-            : `${MONTHS[m]} ${y} · View only`
+            ? `${MONTHS[m]} ${y} · All entries. Changes appear on all phones instantly.`
+            : `${MONTHS[m]} ${y} · Your entries only`
         }
         right={
           <>
@@ -159,7 +162,7 @@ export default function TonList() {
         </div>
       )}
 
-      {canEdit && <AddRow me={profile} onAdded={load} />}
+      <AddRow me={profile} onAdded={load} />
 
       <Card className="mt-5 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
@@ -176,7 +179,9 @@ export default function TonList() {
           <Spinner />
         ) : shown.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-400">
-            No entries found for this month.
+            {canEdit
+              ? "No entries found for this month."
+              : "You have not added any entry this month."}
           </div>
         ) : (
           <div className="overflow-x-auto">
